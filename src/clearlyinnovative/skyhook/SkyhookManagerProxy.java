@@ -17,13 +17,7 @@ import org.appcelerator.kroll.annotations.Kroll;
 import org.appcelerator.titanium.util.Log;
 import org.appcelerator.titanium.util.TiConfig;
 
-import com.skyhookwireless.wps.WPS;
-import com.skyhookwireless.wps.WPSAuthentication;
-import com.skyhookwireless.wps.WPSContinuation;
-import com.skyhookwireless.wps.WPSLocation;
-import com.skyhookwireless.wps.WPSLocationCallback;
-import com.skyhookwireless.wps.WPSReturnCode;
-import com.skyhookwireless.wps.WPSStreetAddressLookup;
+import com.skyhookwireless.wps.*;
 
 // This proxy can be created by calling Skyhook.createExample({message: "hello world"})
 @Kroll.proxy(creatableInModule = SkyhookModule.class)
@@ -40,11 +34,11 @@ public class SkyhookManagerProxy extends KrollProxy {
 	}
 
 	public SkyhookManagerProxy create(KrollDict options) {
-		username = (String) options.get("username");
-		realm = (String) options.get("realm");
+		setProperty("username", (String) options.get("username"));
+		setProperty("realm", (String) options.get("realm"));
 		return this;
 	}
-
+	
 	// Handle creation options
 	@Override
 	public void handleCreationDict(KrollDict options) {
@@ -72,6 +66,9 @@ public class SkyhookManagerProxy extends KrollProxy {
 		KrollDict options = new KrollDict(args);
 		final KrollFunction successCallback = getCallback(options, "success");
 		final KrollFunction cancelCallback = getCallback(options, "error");
+		
+		username = (String) getProperty("username");
+		realm = (String) getProperty("realm");
 
 		// Create the authentication object
 		// myAndroidContext must be a Context instance
@@ -123,5 +120,50 @@ public class SkyhookManagerProxy extends KrollProxy {
 				WPSStreetAddressLookup.WPS_FULL_STREET_ADDRESS_LOOKUP,
 				callback);
 
+	}
+	
+	@Kroll.method(runOnUiThread = true)
+	public void registerUser(HashMap args) throws Exception {
+		final KrollProxy that = this;
+		
+		KrollDict options = new KrollDict(args);
+		final KrollFunction successCallback = getCallback(options, "success");
+		final KrollFunction cancelCallback = getCallback(options, "error");
+		
+		username = (String) getProperty("username");
+		realm = (String) getProperty("realm");
+		
+		WPS wps = new WPS(this.getActivity());
+		WPSAuthentication auth = new WPSAuthentication(username,
+				realm);
+		
+		RegistrationCallback regCallback = new RegistrationCallback() {
+			HashMap<String, String> callbackDict = new HashMap<String, String>();
+			public void handleSuccess()
+			{
+				// Indicates that registration has been successful
+				Log.d(LCAT, "Registration Successfull!");
+				successCallback.callAsync(that.getKrollObject(), callbackDict);
+			}
+
+			public WPSContinuation handleError(final WPSReturnCode error)
+			{
+				// Indicates that registration has failed, along with the error code.
+				// Return continue to keep trying, stop to give up.
+				callbackDict.put("success", "false");
+				callbackDict.put("error", error.toString());
+				
+				return WPSContinuation.WPS_CONTINUE;  
+			}
+
+			public void done()
+			{
+				// Indicates that registration is completed.  
+				// If you call abort() during registration, done() will be
+				// called without either handle method being called.
+				Log.d(LCAT, "Registration Finished!");
+			}
+		};
+		wps.registerUser(auth, null, regCallback);
 	}
 }
