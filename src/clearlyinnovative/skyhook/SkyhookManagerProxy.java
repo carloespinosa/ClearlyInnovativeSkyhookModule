@@ -70,9 +70,10 @@ public class SkyhookManagerProxy extends KrollProxy {
 		username = (String) getProperty("username");
 		realm = (String) getProperty("realm");
 
+		Log.d(LCAT, "START WPSLocation");
 		// Create the authentication object
 		// myAndroidContext must be a Context instance
-		WPS wps = new WPS(this.getActivity());
+		XPS xps = new XPS(this.getActivity());
 		WPSAuthentication auth = new WPSAuthentication(username,
 				realm);
 
@@ -83,7 +84,7 @@ public class SkyhookManagerProxy extends KrollProxy {
 			// What the application should do after it's done
 			public void done() {
 				// after done() returns, you can make more WPS calls.
-				Log.d(LCAT, "DONE : ");
+				Log.d(LCAT, "WPSLocation DONE : ");
 			}
 
 			// What the application should do if an error occurs
@@ -96,6 +97,8 @@ public class SkyhookManagerProxy extends KrollProxy {
 
 				// To retry the location call on error use WPS_CONTINUE,
 				// otherwise return WPS_STOP
+				cancelCallback.callAsync(that.getKrollObject(), callbackDict);
+				
 				return WPSContinuation.WPS_STOP;
 			}
 
@@ -116,7 +119,7 @@ public class SkyhookManagerProxy extends KrollProxy {
 		};
 
 		// Call the location function with callback
-		wps.getLocation(auth,
+		xps.getLocation(auth,
 				WPSStreetAddressLookup.WPS_FULL_STREET_ADDRESS_LOOKUP,
 				callback);
 
@@ -133,7 +136,7 @@ public class SkyhookManagerProxy extends KrollProxy {
 		username = (String) getProperty("username");
 		realm = (String) getProperty("realm");
 		
-		WPS wps = new WPS(this.getActivity());
+		XPS xps = new XPS(this.getActivity());
 		WPSAuthentication auth = new WPSAuthentication(username,
 				realm);
 		
@@ -161,9 +164,73 @@ public class SkyhookManagerProxy extends KrollProxy {
 				// Indicates that registration is completed.  
 				// If you call abort() during registration, done() will be
 				// called without either handle method being called.
-				Log.d(LCAT, "Registration Finished!");
 			}
 		};
-		wps.registerUser(auth, null, regCallback);
+		xps.registerUser(auth, null, regCallback);
+	}
+	
+	@Kroll.method(runOnUiThread = true)
+	public void skyhookIPLocation(HashMap args) throws Exception {
+		final KrollProxy that = this;
+
+		KrollDict options = new KrollDict(args);
+		final KrollFunction successCallback = getCallback(options, "success");
+		final KrollFunction cancelCallback = getCallback(options, "error");
+		
+		username = (String) getProperty("username");
+		realm = (String) getProperty("realm");
+
+		// Create the authentication object
+		// myAndroidContext must be a Context instance
+		XPS xps = new XPS(this.getActivity());
+		WPSAuthentication auth = new WPSAuthentication(username,
+				realm);
+		
+		Log.d(LCAT, "START IPLocation");
+		
+		// Callback object
+		IPLocationCallback callback = new IPLocationCallback() {
+			HashMap<String, String> callbackDict = new HashMap<String, String>();
+
+			// What the application should do after it's done
+			public void done() {
+				// after done() returns, you can make more WPS calls.
+				Log.d(LCAT, "IPLocation DONE : ");
+			}
+
+			// What the application should do if an error occurs
+			public WPSContinuation handleError(WPSReturnCode error) {
+				// handleWPSError(error); // you'll implement handleWPSError()
+				Log.d(LCAT, "error : " + error);
+
+				callbackDict.put("success", "false");
+				callbackDict.put("error", error.toString());
+
+				// To retry the location call on error use WPS_CONTINUE,
+				// otherwise return WPS_STOP
+				cancelCallback.callAsync(that.getKrollObject(), callbackDict);
+				return WPSContinuation.WPS_STOP;
+			}
+
+			// Implements the actions using the location object
+			public void handleIPLocation(IPLocation location) {
+
+				Log.d(LCAT, "location.getLatitude: " + location.getLatitude());
+				Log.d(LCAT, "location.getLongitud: " + location.getLongitude());
+
+				callbackDict.put("success", "true");
+				callbackDict.put("streetAddress", location.getStreetAddress()
+						+ "");
+				callbackDict.put("latitude", location.getLatitude() + "");
+				callbackDict.put("longitude", location.getLongitude() + "");
+
+				successCallback.callAsync(that.getKrollObject(), callbackDict);
+			}
+		};
+
+		// Call the location function with callback
+		xps.getIPLocation(auth,
+				WPSStreetAddressLookup.WPS_FULL_STREET_ADDRESS_LOOKUP,
+				callback);
 	}
 }
